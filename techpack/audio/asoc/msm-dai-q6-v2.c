@@ -304,8 +304,8 @@ static const char *const tdm_header_type[] = {
 };
 
 static const struct soc_enum tdm_config_enum[] = {
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(tdm_data_format), tdm_data_format),
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(tdm_header_type), tdm_header_type),
+	SOC_ENUM_SINGLE_EXT(2, tdm_data_format),
+	SOC_ENUM_SINGLE_EXT(3, tdm_header_type),
 };
 
 static DEFINE_MUTEX(tdm_mutex);
@@ -4232,6 +4232,14 @@ static int msm_dai_q6_mi2s_hw_params(struct snd_pcm_substream *substream,
 	struct afe_param_id_i2s_cfg *i2s = &dai_data->port_config.i2s;
 
 	dai_data->channels = params_channels(params);
+	if (params_channels(params) == 4 &&
+	    params_format(params) == SNDRV_PCM_FORMAT_S16_LE) {
+		pr_debug("%s: using 2-channel I2S for 16x4 capture\n",
+			__func__);
+		dai_data->channels = 2;
+	} else {
+		dai_data->channels = params_channels(params);
+	}
 	switch (dai_data->channels) {
 	case 8:
 	case 7:
@@ -4299,13 +4307,25 @@ static int msm_dai_q6_mi2s_hw_params(struct snd_pcm_substream *substream,
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 	case SNDRV_PCM_FORMAT_SPECIAL:
-		dai_data->port_config.i2s.bit_width = 16;
-		dai_data->bitwidth = 16;
+		/*hack I2S config for packed 16x4 mode*/
+		if (params_channels(params) > 2) {
+			pr_debug("%s: using 32-bit I2S for 16x4 capture\n",
+				__func__);
+			dai_data->port_config.i2s.bit_width = 32;
+			dai_data->bitwidth = 32;
+		} else {
+			dai_data->port_config.i2s.bit_width = 16;
+			dai_data->bitwidth = 16;
+		}
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S24_3LE:
 		dai_data->port_config.i2s.bit_width = 24;
 		dai_data->bitwidth = 24;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		dai_data->port_config.i2s.bit_width = 32;
+		dai_data->bitwidth = 32;
 		break;
 	default:
 		pr_err("%s: format %d\n",
