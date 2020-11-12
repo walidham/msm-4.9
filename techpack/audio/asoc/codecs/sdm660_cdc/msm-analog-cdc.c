@@ -1010,7 +1010,7 @@ static void msm_anlg_cdc_boost_on(struct snd_soc_codec *codec)
 		usleep_range(500, 510);
 	}
 
-	if (sdm660_cdc_priv->boost_pdm_clk)
+	if (sdm660_cdc->boost_pdm_clk)
 		snd_soc_write(codec, MSM89XX_PMIC_ANALOG_BOOST_TEST_2, 0x4);
 }
 
